@@ -5,7 +5,7 @@ import re
 import io
 import unicodedata
 
-# ฟังก์ชันทำความสะอาดข้อความ (คงไว้ตามเดิมเผื่อคุณจำเป็นต้องใช้)
+# ฟังก์ชันทำความสะอาดข้อความ
 def universal_thai_cleaner(text):
     if not text: return "N/A"
     
@@ -81,9 +81,9 @@ def clean_row_cell(text):
     if not text: return ""
     return str(text).replace('\n', ' ').strip()
 
-st.set_page_config(page_title="ระบบดึงข้อมูลจากตาราง PDF v56", layout="wide")
+st.set_page_config(page_title="ระบบดึงข้อมูลจากตาราง PDF v57", layout="wide")
 st.title("📂 ระบบดึงข้อมูลจากตาราง PDF -> Excel")
-st.write("ดึงข้อมูลคอลัมน์: เลขประจำตัว / ชื่อ-ชื่อสกุล / ห้อง / หน่วยการเรียนที่เรียน / หน่วยการเรียนที่ได้ / ระดับคะแนนเฉลี่ยเฉพาะกลุ่ม")
+st.write("ดึงข้อมูลคอลัมน์: ที่ / เลขประจำตัว / ชื่อ-ชื่อสกุล / ห้อง / หน่วยการเรียนที่เรียน / หน่วยการเรียนที่ได้ / ระดับคะแนนเฉลี่ยเฉพาะกลุ่ม")
 
 uploaded_file = st.file_uploader("เลือกไฟล์ PDF ที่ต้องการแปลง", type="pdf")
 
@@ -103,7 +103,9 @@ if uploaded_file is not None:
                         # ข้ามแถวที่เป็นหัวตาราง
                         if "เลขประจำตัว" in str(row) or "เลขที่" in str(row):
                             continue
-                            
+                        
+                        # ✨ ดึง 'เลขที่' จากคอลัมน์แรกสุด (Index 0) ของ PDF
+                        s_no = str(row[0]).replace('\n', '').strip()
                         # เลขประจำตัว จะอยู่คอลัมน์ที่ 2 (Index 1) เสมอ
                         s_id = str(row[1]).replace('\n', '').strip()
                         
@@ -112,7 +114,7 @@ if uploaded_file is not None:
                             # ชื่อ-นามสกุล จะอยู่คอลัมน์ที่ 3 (Index 2) เสมอ
                             s_name = clean_row_cell(row[2])
                             
-                            # ✨ จัดการเคสหน้าแรก: 'ห้อง' กับ 'หน่วยการเรียนที่เรียน' โดนรวบ (เหลือ 6 คอลัมน์)
+                            # จัดการเคสหน้าแรก: 'ห้อง' กับ 'หน่วยการเรียนที่เรียน' โดนรวบ (เหลือ 6 คอลัมน์)
                             if len(row) == 6:
                                 merged_col = str(row[3]).split()
                                 if len(merged_col) >= 2:
@@ -130,7 +132,7 @@ if uploaded_file is not None:
                                 s_credit_earn = clean_row_cell(row[4])
                                 s_gpa = clean_row_cell(row[5])
                                 
-                            # ✨ เคสปกติของหน้าอื่นๆ: คอลัมน์แยกกันสมบูรณ์ (7 คอลัมน์)
+                            # เคสปกติของหน้าอื่นๆ: คอลัมน์แยกกันสมบูรณ์ (7 คอลัมน์)
                             elif len(row) >= 7:
                                 s_room = clean_row_cell(row[3])
                                 s_credit_reg = clean_row_cell(row[4])
@@ -145,6 +147,7 @@ if uploaded_file is not None:
                             s_gpa = s_gpa.replace(' ', '')
 
                             all_data.append({
+                                "ที่": s_no,  # ใช้เลขที่ที่ดึงมาจาก PDF โดยตรง
                                 "เลขประจำตัว": s_id,
                                 "ชื่อ-ชื่อสกุล": s_name,
                                 "ห้อง": s_room,
@@ -156,11 +159,8 @@ if uploaded_file is not None:
             progress_bar.progress((i + 1) / total_pages)
 
     if all_data:
-        # นำข้อมูลเข้าตาราง Excel และจัดลำดับ
+        # นำข้อมูลเข้าตาราง Excel
         df = pd.DataFrame(all_data).drop_duplicates().reset_index(drop=True)
-        
-        # เพิ่มคอลัมน์ "ที่" เรียงลำดับลงไปเรื่อยๆ เริ่มจาก 1
-        df.insert(0, "ที่", range(1, len(df) + 1))
         
         st.success(f"ดึงข้อมูลสำเร็จ! พบทั้งหมด {len(df)} รายการ")
         st.dataframe(df, use_container_width=True)
